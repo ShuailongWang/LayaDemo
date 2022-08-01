@@ -75,6 +75,9 @@ BowScript.prototype.fire = function() {
     
     //添加箭头
     ground.addChild(flyer);
+    
+    //播放音效
+    Laya.SoundManager.playSound('res/audio/bow.ogg', 1);
 }
 
 //旋转角度
