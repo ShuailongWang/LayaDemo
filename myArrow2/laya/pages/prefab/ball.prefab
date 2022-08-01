@@ -6,7 +6,7 @@
     "searchKey":"Sprite,ball",
     "props":{"y":0,"x":0,"presetID":1,"preset":"laya/pages/prefab/ball.prefab","name":"ball","isPresetRoot":true},
     "nodeParent":-1,
-    "maxID":20,
+    "maxID":21,
     "label":"ball",
     "isOpen":true,
     "isDirectory":true,
@@ -25,6 +25,23 @@
             "isAniNode":true,
             "hasChild":false,
             "compId":19,
+            "child":[
+                ]
+        },
+        {
+            "x":15,
+            "type":"Script",
+            "switchAble":true,
+            "source":"src/script/BallScript.js",
+            "searchKey":"Script,BallScript",
+            "removeAble":true,
+            "props":{"presetID":3,"preset":"laya/pages/prefab/ball.prefab"},
+            "nodeParent":18,
+            "label":"BallScript",
+            "isDirectory":false,
+            "isAniNode":true,
+            "hasChild":false,
+            "compId":20,
             "child":[
                 ]
         }],

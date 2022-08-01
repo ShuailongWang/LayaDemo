@@ -56,8 +56,8 @@ BowScript.prototype.fire = function() {
     */
     //发射实际上是在arrow的js中执行
 
-    //修改箭头的方向：垂直向上
-    var rotation = -90;
+    //修改箭头的方向
+    var rotation = getAngle(this.owner.x, this.owner.y, Laya.stage.mouseX, Laya.stage.mouseY);
     this.owner.rotation = rotation;
 
     var ground = this.owner.parent.getChildByName('ground');
@@ -75,4 +75,21 @@ BowScript.prototype.fire = function() {
     
     //添加箭头
     ground.addChild(flyer);
+}
+
+//旋转角度
+function getAngle(x1, y1, x2, y2) {
+    var x = x2 - x1;
+    var y = y2 - y1;
+    var angle = Math.round(Math.atan(y / x) / Math.PI * 180);
+
+    if (x >= 0 && y >= 0) {//第一象限
+        return angle;
+    } else if (x < 0 && y >= 0) {//第二象限
+        return (180 + angle);
+    } else if (x < 0 && y < 0) {//第三象限
+        return (180 + angle);
+    } else {//第四象限
+        return (360 + angle);
+    }
 }
