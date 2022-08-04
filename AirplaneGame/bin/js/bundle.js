@@ -87,7 +87,8 @@
         //播放动画
         playAction(action) {
             this.action = action;
-            this.roleAni.play(true, 'enemy1_fly');
+            //this.roleAni.play(0, true, 'enemy1_fly');
+            this.roleAni.play(0, true, this.type + '_' + action);
             console.log(this.type + '_' + action);
         }
 
@@ -121,7 +122,11 @@
         update() {
             //如果角色隐藏，角色消亡并回收
             if (this.visible === false) {
-
+                //主角死亡不回收，只隐藏，以免其他对象以主角回收对象创建，发生引用修改
+                // if (this.type === 'hero') {
+                //     this.die();
+                //     return;
+                // }
             }
             
             //角色根据速度飞行
@@ -254,7 +259,7 @@
             //角色的位置
             this.hero.x -= (this.moveX - Laya.stage.mouseX);
             this.hero.y -= (this.moveY - Laya.stage.mouseY);
-            console.log('角色移动X:' + this.hero.x + ', Y:'+ this.hero.y);
+            //console.log('角色移动X:' + this.hero.x + ', Y:'+ this.hero.y);
 
             //当前位置
             this.moveX = Laya.stage.mouseX;

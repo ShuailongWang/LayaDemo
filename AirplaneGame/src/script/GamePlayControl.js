@@ -17,9 +17,11 @@ export default class GamePlayControl extends Laya.Script{
     onEnable() {
         this.moveX = 0;
         this.moveY = 0;
-        this.hps = [1, 6, 15];
-        this.nums = [2, 1, 1];
-        this.speeds = [3, 2, 1];
+
+        this.hps = [1, 6, 15];          //血量
+        this.nums = [2, 1, 1];          //
+        this.speeds = [3, 2, 1];        //
+        this.radius =  [20, 35, 80];    //
 
         this.gameInit();
     }
@@ -34,9 +36,9 @@ export default class GamePlayControl extends Laya.Script{
         this.roleLayer = new Laya.Sprite();
         Laya.stage.addChild(this.roleLayer);
 
-        //玩家
+        //初始化玩家角色类型、血量，速度0，半径30，阵营为0
         this.hero = new Role();
-        this.hero.init('hero', 10, 0);
+        this.hero.init('hero', 10, 0, 30, 0);
         this.hero.pos(360, 800);
         this.roleLayer.addChild(this.hero);
 
@@ -56,11 +58,8 @@ export default class GamePlayControl extends Laya.Script{
         //角色刷新
         this.hero.upateRole();
 
-        //敌机刷新
-        for (var i = 0; i < this.roleLayer.numChildren; i ++) {
-            var role = this.roleLayer.getChildAt(i);
-            role.update();
-        }
+        //游戏碰撞逻辑
+        this.collisionDetection();
 
         //每80桢生成一次
         if (Laya.timer.currFrame % 80 === 0) {
@@ -81,7 +80,17 @@ export default class GamePlayControl extends Laya.Script{
 
     //游戏结束
     gameOver() {
+        //移除所有舞台事件，鼠标操控
+        Laya.stage.offAll();
+
+        //清空角色层子对象
+        this.roleLayer.removeChildren(0,roleLayer.numChildren-1);
+        this.roleLayer.removeSelf();
+        
+        //去除游戏主循环
         Laya.timer.clear(this, this.loop);
+        
+        //加载场景
         Laya.Scene.open('GameOver.scene');
     }
 
@@ -135,10 +144,37 @@ export default class GamePlayControl extends Laya.Script{
     creatEnemy(index, hp, speed, num) {
         for (var i = 0; i < num; i++) {
             var enempy = Laya.Pool.getItemByClass('role', Role)
-            enempy.init('enemy' + (index+1), hp, speed);
+            enempy.init('enemy' + (index+1), hp, speed, radius[index], 1);
             enempy.visible = true;
             enempy.pos(Math.random() * (720 - 80) + 50, Math.random() * 100);
             this.roleLayer.addChild(enempy);
+        }
+    }
+
+    //碰撞检测
+    collisionDetection() {
+        //遍历所有飞机，更改飞机状态
+        for (int i = 0; i < this.roleLayer.numChildren; i++) {
+            var role = this.roleLayer.getChildAt(i);
+            role.update();
+
+            if (role.hp <= 0) {
+                continue;
+            }
+
+            for (var j = i - 1; j > -1; j--) {
+                var role1 = this.roleLayer.getChildAt(j);
+                
+                //如果role1未死亡且不同阵营
+                if (role1.hp > 0 && role1.camp != role.camp) {
+                    var hitRadius = role.hitRadius + role1.hitRadius;
+                    if (Math.abs(role.x - role1.x) < hitRadius && Math.abs(role.y - role1.y) < hitRadius) {
+                        //相互掉血
+                        role.lostHp(1);
+                        role1.lostHp(1);
+                    }
+                }
+            }
         }
     }
 }
