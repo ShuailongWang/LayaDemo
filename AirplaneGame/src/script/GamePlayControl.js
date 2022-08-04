@@ -1,9 +1,9 @@
 /**
  * GamePlayControl.js
-*/
+ */
 import Role from './Role'
 
-export default class GamePlayControl extends Laya.Script{
+export default class GamePlayControl extends Laya.Script {
     /** @prop {name:pause_mask, tip:"暂停遮罩", type:Node} */
     /** @prop {name:pause_box, tip:"暂停提示", type:Node} */
 
@@ -18,10 +18,10 @@ export default class GamePlayControl extends Laya.Script{
         this.moveX = 0;
         this.moveY = 0;
 
-        this.hps = [1, 6, 15];          //血量
-        this.nums = [2, 1, 1];          //
-        this.speeds = [3, 2, 1];        //
-        this.radius =  [20, 35, 80];    //
+        this.hps = [1, 6, 15]; //血量
+        this.nums = [2, 1, 1]; //
+        this.speeds = [3, 2, 1]; //
+        this.radius = [20, 35, 80]; //
 
         this.gameInit();
     }
@@ -54,7 +54,7 @@ export default class GamePlayControl extends Laya.Script{
         Laya.stage.frameLoop(1, this, this.loop);
     }
 
-    loop(){
+    loop() {
         //角色刷新
         this.hero.upateRole();
 
@@ -84,12 +84,12 @@ export default class GamePlayControl extends Laya.Script{
         Laya.stage.offAll();
 
         //清空角色层子对象
-        this.roleLayer.removeChildren(0,roleLayer.numChildren-1);
+        this.roleLayer.removeChildren(0, roleLayer.numChildren - 1);
         this.roleLayer.removeSelf();
-        
+
         //去除游戏主循环
         Laya.timer.clear(this, this.loop);
-        
+
         //加载场景
         Laya.Scene.open('GameOver.scene');
     }
@@ -144,7 +144,7 @@ export default class GamePlayControl extends Laya.Script{
     creatEnemy(index, hp, speed, num) {
         for (var i = 0; i < num; i++) {
             var enempy = Laya.Pool.getItemByClass('role', Role)
-            enempy.init('enemy' + (index+1), hp, speed, radius[index], 1);
+            enempy.init('enemy' + (index + 1), hp, speed, this.radius[index], 1);
             enempy.visible = true;
             enempy.pos(Math.random() * (720 - 80) + 50, Math.random() * 100);
             this.roleLayer.addChild(enempy);
@@ -154,24 +154,26 @@ export default class GamePlayControl extends Laya.Script{
     //碰撞检测
     collisionDetection() {
         //遍历所有飞机，更改飞机状态
-        for (int i = 0; i < this.roleLayer.numChildren; i++) {
+        for (var i = 0; i < this.roleLayer.numChildren; i++) {
+            //获取飞机并更新
             var role = this.roleLayer.getChildAt(i);
             role.update();
 
+            //死亡不处理
             if (role.hp <= 0) {
                 continue;
             }
 
             for (var j = i - 1; j > -1; j--) {
                 var role1 = this.roleLayer.getChildAt(j);
-                
+
                 //如果role1未死亡且不同阵营
                 if (role1.hp > 0 && role1.camp != role.camp) {
                     var hitRadius = role.hitRadius + role1.hitRadius;
                     if (Math.abs(role.x - role1.x) < hitRadius && Math.abs(role.y - role1.y) < hitRadius) {
                         //相互掉血
-                        role.lostHp(1);
-                        role1.lostHp(1);
+                        role.roleLostHp(1);
+                        role1.roleLostHp(1);
                     }
                 }
             }

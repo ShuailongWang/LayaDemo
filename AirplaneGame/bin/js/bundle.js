@@ -59,6 +59,8 @@
             this.type = "";     
             this.hp = 0;
             this.speed = 0;
+            this.hitRadius = 0;
+            this.camp = 0;
             this.action = "";
 
             //实例动画
@@ -66,22 +68,41 @@
             this.roleAni.loadAnimation("GameRole.ani");
         }
 
-        //角色初始化, 类型名字、血量、速度
-        init(type, hp, speed) {
+        /*
+        * 角色初始化
+        * @param type  角色类型：“hero”:玩家飞机，“enemy1-3”：敌人飞机、“bulle:1-2”：子弹、"ufo1-2":道具
+        * @param hp      血量
+        * @param speed   速度
+        * @param hitRadius   碰撞半径
+        * @param camp    阵营
+        */
+        init(type, hp, speed, hitRadius, camp) {
             this.type = type;
             this.hp = hp;
             this.speed = speed;
+            this.hitRadius = hitRadius;
+            this.camp = camp;
             this.addChild(this.roleAni);
 
             this.roleAni.on(Laya.Event.COMPLETE, this, this.onComplete);
             this.playAction('fly');
         }
 
+        //动画播放完成
         onComplete() {
             if (this.roleAni.width === 0) {
                 var bounds = this.roleAni.getBounds();
                 this.roleAni.size(bounds.width, bounds.height);
             }
+
+             //如果死亡动画播放完成
+             if (this.action === "die") {
+                 //update()中，隐藏后进行移除回收
+                 this.visible=false;
+             } else if(this.action === "hit") {
+                //如果是受伤动画，下一帧播放飞行动画
+                 this.playAction("fly");
+             }
         }
 
         //播放动画
@@ -123,10 +144,10 @@
             //如果角色隐藏，角色消亡并回收
             if (this.visible === false) {
                 //主角死亡不回收，只隐藏，以免其他对象以主角回收对象创建，发生引用修改
-                // if (this.type === 'hero') {
-                //     this.die();
-                //     return;
-                // }
+                if (this.type === 'hero') {
+                    this.die();
+                    return;
+                }
             }
             
             //角色根据速度飞行
@@ -140,13 +161,26 @@
             //
             this.upateRole();
         }
+
+        //角色掉血
+        roleLostHp(lostHp) {
+            this.hp -= lostHp;
+            if (this.hp > 0) {
+                //如果未死亡，则播放受击动画
+                this.playAction('hit');
+            } else {
+                //播放死亡动画
+                this.playAction('die');
+            }
+        }
+
     }
 
     /**
      * GamePlayControl.js
-    */
+     */
 
-    class GamePlayControl extends Laya.Script{
+    class GamePlayControl extends Laya.Script {
         /** @prop {name:pause_mask, tip:"暂停遮罩", type:Node} */
         /** @prop {name:pause_box, tip:"暂停提示", type:Node} */
 
@@ -160,9 +194,11 @@
         onEnable() {
             this.moveX = 0;
             this.moveY = 0;
-            this.hps = [1, 6, 15];
-            this.nums = [2, 1, 1];
-            this.speeds = [3, 2, 1];
+
+            this.hps = [1, 6, 15]; //血量
+            this.nums = [2, 1, 1]; //
+            this.speeds = [3, 2, 1]; //
+            this.radius = [20, 35, 80]; //
 
             this.gameInit();
         }
@@ -177,9 +213,9 @@
             this.roleLayer = new Laya.Sprite();
             Laya.stage.addChild(this.roleLayer);
 
-            //玩家
+            //初始化玩家角色类型、血量，速度0，半径30，阵营为0
             this.hero = new Role();
-            this.hero.init('hero', 10, 0);
+            this.hero.init('hero', 10, 0, 30, 0);
             this.hero.pos(360, 800);
             this.roleLayer.addChild(this.hero);
 
@@ -195,15 +231,12 @@
             Laya.stage.frameLoop(1, this, this.loop);
         }
 
-        loop(){
+        loop() {
             //角色刷新
             this.hero.upateRole();
 
-            //敌机刷新
-            for (var i = 0; i < this.roleLayer.numChildren; i ++) {
-                var role = this.roleLayer.getChildAt(i);
-                role.update();
-            }
+            //游戏碰撞逻辑
+            this.collisionDetection();
 
             //每80桢生成一次
             if (Laya.timer.currFrame % 80 === 0) {
@@ -224,7 +257,17 @@
 
         //游戏结束
         gameOver() {
+            //移除所有舞台事件，鼠标操控
+            Laya.stage.offAll();
+
+            //清空角色层子对象
+            this.roleLayer.removeChildren(0, roleLayer.numChildren - 1);
+            this.roleLayer.removeSelf();
+
+            //去除游戏主循环
             Laya.timer.clear(this, this.loop);
+
+            //加载场景
             Laya.Scene.open('GameOver.scene');
         }
 
@@ -278,10 +321,37 @@
         creatEnemy(index, hp, speed, num) {
             for (var i = 0; i < num; i++) {
                 var enempy = Laya.Pool.getItemByClass('role', Role);
-                enempy.init('enemy' + (index+1), hp, speed);
+                enempy.init('enemy' + (index + 1), hp, speed, this.radius[index], 1);
                 enempy.visible = true;
                 enempy.pos(Math.random() * (720 - 80) + 50, Math.random() * 100);
                 this.roleLayer.addChild(enempy);
+            }
+        }
+
+        //碰撞检测
+        collisionDetection() {
+            //遍历所有飞机，更改飞机状态
+            for (var i = 0; i < this.roleLayer.numChildren; i++) {
+                var role = this.roleLayer.getChildAt(i);
+                role.update();
+
+                if (role.hp <= 0) {
+                    continue;
+                }
+
+                for (var j = i - 1; j > -1; j--) {
+                    var role1 = this.roleLayer.getChildAt(j);
+
+                    //如果role1未死亡且不同阵营
+                    if (role1.hp > 0 && role1.camp != role.camp) {
+                        var hitRadius = role.hitRadius + role1.hitRadius;
+                        if (Math.abs(role.x - role1.x) < hitRadius && Math.abs(role.y - role1.y) < hitRadius) {
+                            //相互掉血
+                            role.roleLostHp(1);
+                            role1.roleLostHp(1);
+                        }
+                    }
+                }
             }
         }
     }
