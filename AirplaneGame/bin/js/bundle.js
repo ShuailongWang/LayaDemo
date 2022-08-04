@@ -47,8 +47,100 @@
     }
 
     /**
+     * Role.js
+    */
+    class Role extends Laya.Sprite {
+        
+        constructor() {
+            super();
+            
+            console.log('Role ==> constructor');
+
+            this.type = "";     
+            this.hp = 0;
+            this.speed = 0;
+            this.action = "";
+
+            //实例动画
+            this.roleAni = new Laya.Animation();
+            this.roleAni.loadAnimation("GameRole.ani");
+        }
+
+        //角色初始化, 类型名字、血量、速度
+        init(type, hp, speed) {
+            this.type = type;
+            this.hp = hp;
+            this.speed = speed;
+            this.addChild(this.roleAni);
+
+            this.roleAni.on(Laya.Event.COMPLETE, this, this.onComplete);
+            this.playAction('fly');
+        }
+
+        onComplete() {
+            if (this.roleAni.width === 0) {
+                var bounds = this.roleAni.getBounds();
+                this.roleAni.size(bounds.width, bounds.height);
+            }
+        }
+
+        //播放动画
+        playAction(action) {
+            this.action = action;
+            this.roleAni.play(true, 'enemy1_fly');
+            console.log(this.type + '_' + action);
+        }
+
+
+        //检测是否移除屏幕
+        upateRole() {
+            if (this.type === 'hero') {
+                if (this.x < this.roleAni.width / 2) {
+                    this.x = this.roleAni.width/2;
+                } else if (this.x > 720 - this.roleAni.width/2) {
+                    this.x = 720 - this.roleAni.width/2;
+                }
+
+                if (this.y < this.roleAni.height/2) {
+                    this.y = this.roleAni.height/2;
+                } else if (this.y > 1280 - this.roleAni.height/2) {
+                    this.y = 1280 - this.roleAni.height/2;
+                }
+            }
+        }
+
+        //死亡
+        die() {
+            this.roleAni.stop();
+            this.roleAni.offAll();
+            this.removeSelf();
+            Laya.Pool.recover('role', this);
+        }
+
+        //角色更新
+        update() {
+            //如果角色隐藏，角色消亡并回收
+            if (this.visible === false) {
+
+            }
+            
+            //角色根据速度飞行
+            this.y += this.speed;
+
+            //如果移动到显示区域以外，则隐藏
+            if (this.type !== 'hero' && (this.y > 1280 + 100 || this.y < -150)) {
+                this.visible = false;
+            }
+
+            //
+            this.upateRole();
+        }
+    }
+
+    /**
      * GamePlayControl.js
     */
+
     class GamePlayControl extends Laya.Script{
         /** @prop {name:pause_mask, tip:"暂停遮罩", type:Node} */
         /** @prop {name:pause_box, tip:"暂停提示", type:Node} */
@@ -61,23 +153,73 @@
         }
 
         onEnable() {
+            this.moveX = 0;
+            this.moveY = 0;
+            this.hps = [1, 6, 15];
+            this.nums = [2, 1, 1];
+            this.speeds = [3, 2, 1];
+
             this.gameInit();
-            
         }
 
         //初始化
         gameInit() {
+            console.log('gameInit');
             this.pause_mask.visible = false;
             this.pause_box.visible = false;
+
+            //角色容器
+            this.roleLayer = new Laya.Sprite();
+            Laya.stage.addChild(this.roleLayer);
+
+            //玩家
+            this.hero = new Role();
+            this.hero.init('hero', 10, 0);
+            this.hero.pos(360, 800);
+            this.roleLayer.addChild(this.hero);
 
             //暂停按钮事件
             this.top_bar = this.owner.getChildByName('top_bar');
             this.btn_pause = this.top_bar.getChildByName('btn_pause');
             this.btn_pause.on(Laya.Event.CLICK, this, this.gamePause);
+
+            //监听鼠标事件
+            Laya.stage.on(Laya.Event.MOUSE_DOWN, this, this.onMouseDown);
+            Laya.stage.on(Laya.Event.MOUSE_UP, this, this.onMouseUp);
+
+            Laya.stage.frameLoop(1, this, this.loop);
+        }
+
+        loop(){
+            //角色刷新
+            this.hero.upateRole();
+
+            //敌机刷新
+            for (var i = 0; i < this.roleLayer.numChildren; i ++) {
+                var role = this.roleLayer.getChildAt(i);
+                role.update();
+            }
+
+            //每80桢生成一次
+            if (Laya.timer.currFrame % 80 === 0) {
+                this.creatEnemy(0, this.hps[0], this.speeds[0], this.nums[0]);
+            }
+
+            //每160桢生成一次
+            if (Laya.timer.currFrame % 160 === 0) {
+                this.creatEnemy(1, this.hps[1], this.speeds[1], this.nums[1]);
+            }
+
+            //每1000桢生成一次
+            if (Laya.timer.currFrame % 1000 === 0) {
+                this.creatEnemy(2, this.hps[2], this.speeds[2], this.nums[2]);
+            }
+
         }
 
         //游戏结束
         gameOver() {
+            Laya.timer.clear(this, this.loop);
             Laya.Scene.open('GameOver.scene');
         }
 
@@ -96,6 +238,47 @@
             this.pause_box.visible = false;
 
         }
+
+        //鼠标按下
+        onMouseDown() {
+            console.log('鼠标按下');
+            this.moveX = Laya.stage.mouseX;
+            this.moveY = Laya.stage.mouseY;
+
+            //开始移动监听
+            Laya.stage.on(Laya.Event.MOUSE_MOVE, this, this.onMouseMove);
+        }
+
+        //鼠标移动
+        onMouseMove() {
+            //角色的位置
+            this.hero.x -= (this.moveX - Laya.stage.mouseX);
+            this.hero.y -= (this.moveY - Laya.stage.mouseY);
+            console.log('角色移动X:' + this.hero.x + ', Y:'+ this.hero.y);
+
+            //当前位置
+            this.moveX = Laya.stage.mouseX;
+            this.moveY = Laya.stage.mouseY;
+        }
+
+        //鼠标抬起
+        onMouseUp() {
+            console.log('鼠标抬起');
+            //移除移动监听
+            Laya.stage.off(Laya.Event.MOUSE_MOVE, this, this.onMouseMove);
+        }
+
+
+        //创建敌机, 编号、血量、速度、数量
+        creatEnemy(index, hp, speed, num) {
+            for (var i = 0; i < num; i++) {
+                var enempy = Laya.Pool.getItemByClass('role', Role);
+                enempy.init('enemy' + (index+1), hp, speed);
+                enempy.visible = true;
+                enempy.pos(Math.random() * (720 - 80) + 50, Math.random() * 100);
+                this.roleLayer.addChild(enempy);
+            }
+        }
     }
 
     /**
@@ -107,6 +290,11 @@
         }
 
         onEnable() {
+            //加载图片资源
+            Laya.loader.load("res/atlas/gameRole.atlas", Laya.Handler.create(this, function(){
+                console.log('1111');
+            }));
+
 
             //开始按钮添加点击事件
             this.btn_start = this.getChildByName('btn_start');
