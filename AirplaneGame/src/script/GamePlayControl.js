@@ -58,6 +58,14 @@ export default class GamePlayControl extends Laya.Script {
         //角色刷新
         this.hero.upateRole();
 
+        if (this.hero.hp <= 0) {
+            this.gameOver();
+            return;
+        } else {
+            //射击
+            this.hero.shoot();
+        }
+
         //游戏碰撞逻辑
         this.collisionDetection();
 
@@ -171,9 +179,15 @@ export default class GamePlayControl extends Laya.Script {
                 if (role1.hp > 0 && role1.camp != role.camp) {
                     var hitRadius = role.hitRadius + role1.hitRadius;
                     if (Math.abs(role.x - role1.x) < hitRadius && Math.abs(role.y - role1.y) < hitRadius) {
-                        //相互掉血
-                        role.roleLostHp(1);
-                        role1.roleLostHp(1);
+                        //如果某一个碰撞体是道具，则吃道具，否则掉血
+                        if (role.propType !== 0 || role1.propType !== 0) {
+                            role.eatProp(role1);
+                            role1.eatProp(role);
+                        } else {
+                            //相互掉血
+                            role.roleLostHp(1);
+                            role1.roleLostHp(1);
+                        }
                     }
                 }
             }
