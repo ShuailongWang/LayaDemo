@@ -8,7 +8,7 @@ export default class Role extends Laya.Sprite {
     constructor() {
         super();
         
-        console.log('Role ==> constructor');
+        //console.log('Role ==> constructor');
 
         this.type = "";     
         this.hp = 0;
@@ -76,9 +76,8 @@ export default class Role extends Laya.Sprite {
     //播放动画
     playAction(action) {
         this.action = action;
-        //this.roleAni.play(0, true, 'enemy1_fly');
         this.roleAni.play(0, true, this.type + '_' + action);
-        console.log(this.type + '_' + action);
+        //console.log(this.type + '_' + action);
     }
 
 
@@ -136,19 +135,29 @@ export default class Role extends Laya.Sprite {
         if (this.hp > 0) {
             //如果未死亡，则播放受击动画
             this.playAction('hit');
-        } else {
-            if (this.isBullet === true) {
-                this.visible = false;
-                return
-            }
+            return;
+        }
 
-            //播放死亡动画
-            this.playAction('die');
+        //如果是子弹，隐藏
+        if (this.isBullet === true) {
+            this.visible = false;
+            return
+        }
 
-            //敌机死亡
-            if (this.type !== 'hero' && this.isBullet === false) {
-                GameManager.getInstance().score++;
-            }
+        //播放死亡动画
+        this.playAction('die');
+
+        //角色死亡音效
+        if (this.type === 'hero') {
+            Laya.SoundManager.playSound("res/sound/game_over.mp3");
+        } else { //敌机死亡音效
+            console.log('112233');
+            Laya.SoundManager.playSound("res/sound/enemy1_die.mp3");
+        }
+
+        //敌机死亡
+        if (this.type !== 'hero' && this.isBullet === false) {
+            GameManager.getInstance().score++;
         }
     }
 
@@ -175,14 +184,20 @@ export default class Role extends Laya.Sprite {
             bullet.visible = true;                                  //对象池中对象死亡时会被隐藏，重新显示
             bullet.pos(this.x + pos[i], this.y - 80);
             this.parent.addChild(bullet);
+
+            //音效
+            Laya.SoundManager.playSound("res/sound/bullet.mp3");
         }
     }
 
     //角色死亡掉落物品
     lostProp() {
+        console.log('道具出现');
         if (this.type != 'enemy3') {
+            console.log('道具出现11');
             return;
         }
+        console.log('道具出现22');
         var prop = Laya.Pool.getItemByClass('hero', Role);
         var r = Math.random();
         var num = (r < 0.7) ?1:2;
@@ -191,7 +206,6 @@ export default class Role extends Laya.Sprite {
         prop.visible = true;
         prop.pos(this.x, this.y);
         this.parent.addChild(prop);
-        console.log('道具出现');
     }
 
     //吃道具
@@ -199,6 +213,9 @@ export default class Role extends Laya.Sprite {
         if (this.type != 'hero' || prop.propType === 0) {
             return;
         }
+
+        //吃道具音效
+        Laya.SoundManager.playSound("res/sound/achievement.mp3");
 
         if (prop.propType === 1) {//子弹箱
             //子弹级别增加

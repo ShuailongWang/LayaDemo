@@ -8,7 +8,14 @@ export default class GameStartScene extends Laya.Scene {
 
     onEnable() {
         //加载图片资源
-        Laya.loader.load("res/atlas/gameRole.atlas", Laya.Handler.create(this, function(){
+        Laya.loader.load([
+            {url:"res/atlas/gameRole.atlas"},
+            {url:"res/sound/achievement.mp3", type:Laya.Loader.SOUND},
+            {url:"res/sound/bullet.mp3", type:Laya.Loader.SOUND},
+            {url:"res/sound/game_over.mp3", type:Laya.Loader.SOUND},
+            {url:"res/sound/enemy1_die.mp3", type:Laya.Loader.SOUND},
+            {url:"res/sound/enemy3_out.mp3", type:Laya.Loader.SOUND},
+        ], Laya.Handler.create(this, function(){
             console.log('1111');
         }));
 

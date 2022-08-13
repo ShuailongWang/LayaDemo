@@ -55,7 +55,7 @@
         constructor() {
             super();
             
-            console.log('Role ==> constructor');
+            //console.log('Role ==> constructor');
 
             this.type = "";     
             this.hp = 0;
@@ -123,9 +123,8 @@
         //播放动画
         playAction(action) {
             this.action = action;
-            //this.roleAni.play(0, true, 'enemy1_fly');
             this.roleAni.play(0, true, this.type + '_' + action);
-            console.log(this.type + '_' + action);
+            //console.log(this.type + '_' + action);
         }
 
 
@@ -183,19 +182,29 @@
             if (this.hp > 0) {
                 //如果未死亡，则播放受击动画
                 this.playAction('hit');
-            } else {
-                if (this.isBullet === true) {
-                    this.visible = false;
-                    return
-                }
+                return;
+            }
 
-                //播放死亡动画
-                this.playAction('die');
+            //如果是子弹，隐藏
+            if (this.isBullet === true) {
+                this.visible = false;
+                return
+            }
 
-                //敌机死亡
-                if (this.type !== 'hero' && this.isBullet === false) {
-                    GameManager.getInstance().score++;
-                }
+            //播放死亡动画
+            this.playAction('die');
+
+            //角色死亡音效
+            if (this.type === 'hero') {
+                Laya.SoundManager.playSound("res/sound/game_over.mp3");
+            } else { //敌机死亡音效
+                console.log('112233');
+                Laya.SoundManager.playSound("res/sound/enemy1_die.mp3");
+            }
+
+            //敌机死亡
+            if (this.type !== 'hero' && this.isBullet === false) {
+                GameManager.getInstance().score++;
             }
         }
 
@@ -222,14 +231,20 @@
                 bullet.visible = true;                                  //对象池中对象死亡时会被隐藏，重新显示
                 bullet.pos(this.x + pos[i], this.y - 80);
                 this.parent.addChild(bullet);
+
+                //音效
+                Laya.SoundManager.playSound("res/sound/bullet.mp3");
             }
         }
 
         //角色死亡掉落物品
         lostProp() {
+            console.log('道具出现');
             if (this.type != 'enemy3') {
+                console.log('道具出现11');
                 return;
             }
+            console.log('道具出现22');
             var prop = Laya.Pool.getItemByClass('hero', Role);
             var r = Math.random();
             var num = (r < 0.7) ?1:2;
@@ -238,7 +253,6 @@
             prop.visible = true;
             prop.pos(this.x, this.y);
             this.parent.addChild(prop);
-            console.log('道具出现');
         }
 
         //吃道具
@@ -246,6 +260,9 @@
             if (this.type != 'hero' || prop.propType === 0) {
                 return;
             }
+
+            //吃道具音效
+            Laya.SoundManager.playSound("res/sound/achievement.mp3");
 
             if (prop.propType === 1) {//子弹箱
                 //子弹级别增加
@@ -290,6 +307,13 @@
             this.speeds = [3, 2, 1]; //
             this.radius = [20, 35, 80]; //
 
+            this.createTime = 0;    //敌人刷新加速
+            this.speedUp = 0;       //敌人速度提升
+            this.hpUp = 0;          //敌人血量提升
+            this.numUp = 0;         //敌人数量提升
+            this.levelUpScore = 0;  //升级等级所需的成绩数量*
+
+
             this.gameInit();
         }
 
@@ -298,6 +322,10 @@
             console.log('gameInit');
             this.pause_mask.visible = false;
             this.pause_box.visible = false;
+
+            GameManager.getInstance().level = 1;
+            GameManager.getInstance().score = 0;
+            this.levelUpScore = 10;
 
             //角色容器
             this.roleLayer = new Laya.Sprite();
@@ -331,23 +359,25 @@
             } else {
                 //射击
                 this.hero.shoot();
+                //游戏升级计算
+                this.levelUp();
             }
 
             //游戏碰撞逻辑
             this.collisionDetection();
 
             //每80桢生成一次
-            if (Laya.timer.currFrame % 80 === 0) {
-                this.creatEnemy(0, this.hps[0], this.speeds[0], this.nums[0]);
+            if (Laya.timer.currFrame % (80 - this.createTime) === 0) {
+                this.creatEnemy(0, this.hps[0], this.speeds[0] + this.speedUp, this.nums[0] + this.numUp);
             }
 
             //每160桢生成一次
-            if (Laya.timer.currFrame % 160 === 0) {
-                this.creatEnemy(1, this.hps[1], this.speeds[1], this.nums[1]);
+            if (Laya.timer.currFrame % (160 - this.createTime * 2) === 0) {
+                this.creatEnemy(1, this.hps[1], this.speeds[1] + this.speedUp, this.nums[1] + this.numUp);
             }
 
             //每1000桢生成一次
-            if (Laya.timer.currFrame % 1000 === 0) {
+            if (Laya.timer.currFrame % (1000 - this.createTime * 3) === 0) {
                 this.creatEnemy(2, this.hps[2], this.speeds[2], this.nums[2]);
             }
 
@@ -359,7 +389,7 @@
             Laya.stage.offAll();
 
             //清空角色层子对象
-            this.roleLayer.removeChildren(0, roleLayer.numChildren - 1);
+            this.roleLayer.removeChildren(0, this.roleLayer.numChildren - 1);
             this.roleLayer.removeSelf();
 
             //去除游戏主循环
@@ -460,6 +490,31 @@
                 }
             }
         }
+
+        //等级升级
+        levelUp() {
+            if (GameManager.getInstance().score < this.levelUpScore) {
+                return;
+            }
+
+            GameManager.getInstance().level++;
+            var level = GameManager.getInstance().level;
+
+            //角色血量
+            this.hero.hp = Math.min(this.hero.hp + level * 1, 30);
+
+            //飞行速度
+            this.speedUp = Math.floor(level / 6);
+            //关卡越高，创建敌机间隔越短
+            this.createTime = level < 30 ? level * 2 : 60;
+            //敌机血量
+            this.hpUp = Math.floor(level / 8);
+            //敌机数量
+            this.numUp = Math.floor(level / 10);
+            //提高下一级的升级分数
+            this.levelUpScore += level * 10;
+        }
+
     }
 
     /**
@@ -472,7 +527,14 @@
 
         onEnable() {
             //加载图片资源
-            Laya.loader.load("res/atlas/gameRole.atlas", Laya.Handler.create(this, function(){
+            Laya.loader.load([
+                {url:"res/atlas/gameRole.atlas"},
+                {url:"res/sound/achievement.mp3", type:Laya.Loader.SOUND},
+                {url:"res/sound/bullet.mp3", type:Laya.Loader.SOUND},
+                {url:"res/sound/game_over.mp3", type:Laya.Loader.SOUND},
+                {url:"res/sound/enemy1_die.mp3", type:Laya.Loader.SOUND},
+                {url:"res/sound/enemy3_out.mp3", type:Laya.Loader.SOUND},
+            ], Laya.Handler.create(this, function(){
                 console.log('1111');
             }));
 

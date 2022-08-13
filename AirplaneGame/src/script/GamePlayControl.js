@@ -1,6 +1,7 @@
 /**
  * GamePlayControl.js
  */
+import GameManager from './GameManager';
 import Role from './Role'
 
 export default class GamePlayControl extends Laya.Script {
@@ -23,6 +24,13 @@ export default class GamePlayControl extends Laya.Script {
         this.speeds = [3, 2, 1]; //
         this.radius = [20, 35, 80]; //
 
+        this.createTime = 0;    //敌人刷新加速
+        this.speedUp = 0;       //敌人速度提升
+        this.hpUp = 0;          //敌人血量提升
+        this.numUp = 0;         //敌人数量提升
+        this.levelUpScore = 0;  //升级等级所需的成绩数量*
+
+
         this.gameInit();
     }
 
@@ -31,6 +39,10 @@ export default class GamePlayControl extends Laya.Script {
         console.log('gameInit');
         this.pause_mask.visible = false;
         this.pause_box.visible = false;
+
+        GameManager.getInstance().level = 1;
+        GameManager.getInstance().score = 0;
+        this.levelUpScore = 10;
 
         //角色容器
         this.roleLayer = new Laya.Sprite();
@@ -64,23 +76,25 @@ export default class GamePlayControl extends Laya.Script {
         } else {
             //射击
             this.hero.shoot();
+            //游戏升级计算
+            this.levelUp();
         }
 
         //游戏碰撞逻辑
         this.collisionDetection();
 
         //每80桢生成一次
-        if (Laya.timer.currFrame % 80 === 0) {
-            this.creatEnemy(0, this.hps[0], this.speeds[0], this.nums[0]);
+        if (Laya.timer.currFrame % (80 - this.createTime) === 0) {
+            this.creatEnemy(0, this.hps[0], this.speeds[0] + this.speedUp, this.nums[0] + this.numUp);
         }
 
         //每160桢生成一次
-        if (Laya.timer.currFrame % 160 === 0) {
-            this.creatEnemy(1, this.hps[1], this.speeds[1], this.nums[1]);
+        if (Laya.timer.currFrame % (160 - this.createTime * 2) === 0) {
+            this.creatEnemy(1, this.hps[1], this.speeds[1] + this.speedUp, this.nums[1] + this.numUp);
         }
 
         //每1000桢生成一次
-        if (Laya.timer.currFrame % 1000 === 0) {
+        if (Laya.timer.currFrame % (1000 - this.createTime * 3) === 0) {
             this.creatEnemy(2, this.hps[2], this.speeds[2], this.nums[2]);
         }
 
@@ -92,7 +106,7 @@ export default class GamePlayControl extends Laya.Script {
         Laya.stage.offAll();
 
         //清空角色层子对象
-        this.roleLayer.removeChildren(0, roleLayer.numChildren - 1);
+        this.roleLayer.removeChildren(0, this.roleLayer.numChildren - 1);
         this.roleLayer.removeSelf();
 
         //去除游戏主循环
@@ -193,4 +207,29 @@ export default class GamePlayControl extends Laya.Script {
             }
         }
     }
+
+    //等级升级
+    levelUp() {
+        if (GameManager.getInstance().score < this.levelUpScore) {
+            return;
+        }
+
+        GameManager.getInstance().level++;
+        var level = GameManager.getInstance().level;
+
+        //角色血量
+        this.hero.hp = Math.min(this.hero.hp + level * 1, 30)
+
+        //飞行速度
+        this.speedUp = Math.floor(level / 6);
+        //关卡越高，创建敌机间隔越短
+        this.createTime = level < 30 ? level * 2 : 60;
+        //敌机血量
+        this.hpUp = Math.floor(level / 8);
+        //敌机数量
+        this.numUp = Math.floor(level / 10);
+        //提高下一级的升级分数
+        this.levelUpScore += level * 10;
+    }
+
 }
